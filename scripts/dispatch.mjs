@@ -10,14 +10,22 @@ const {
 
 const token = EXE_DEV_TOKEN.replace(/\s/g, '')
 
-const exe = (cmd) =>
-  fetch('https://exe.dev/exec', {
+const exe = async (cmd) => {
+  const r = await fetch('https://exe.dev/exec', {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
     body: cmd,
-  }).then(r => r.text())
+  })
+  const text = await r.text()
+  if (!r.ok) throw new Error(`exe.dev error ${r.status} for '${cmd}': ${text}`)
+  return text
+}
 
-const exeJson = async (cmd) => JSON.parse(await exe(cmd))
+const exeJson = async (cmd) => {
+  const text = await exe(cmd)
+  try { return JSON.parse(text) }
+  catch { throw new Error(`exe.dev non-JSON for '${cmd}': ${text}`) }
+}
 
 const repoSlug = REPO.replace(/\//g, '-').replace(/[^a-z0-9-]/gi, '-').toLowerCase()
 const num = ISSUE_NUMBER || PR_NUMBER

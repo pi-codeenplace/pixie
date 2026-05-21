@@ -32,7 +32,7 @@ on:
 jobs:
   dispatch:
     runs-on: ubuntu-latest
-    if: github.actor != inputs.bot_login
+    if: github.event_name == 'pull_request' || github.actor != inputs.bot_login
     steps:
       - uses: actions/checkout@v4
         with:
@@ -70,11 +70,8 @@ jobs:
   cleanup:
     runs-on: ubuntu-latest
     if: |
-      github.actor != inputs.bot_login &&
-      (
-        (github.event_name == 'issues' && github.event.action == 'closed') ||
-        (github.event_name == 'pull_request' && github.event.action == 'closed')
-      )
+      (github.event_name == 'issues' && github.event.action == 'closed' && github.actor != inputs.bot_login) ||
+      (github.event_name == 'pull_request' && github.event.action == 'closed')
     steps:
       - uses: actions/checkout@v4
         with:

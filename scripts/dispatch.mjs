@@ -8,10 +8,12 @@ const {
   ISSUE_NUMBER, PR_NUMBER, LABEL_NAME,
 } = process.env
 
+const token = EXE_DEV_TOKEN.replace(/\s/g, '')
+
 const exe = (cmd) =>
   fetch('https://exe.dev/exec', {
     method: 'POST',
-    headers: { Authorization: `Bearer ${EXE_DEV_TOKEN}` },
+    headers: { Authorization: `Bearer ${token}` },
     body: cmd,
   }).then(r => r.text())
 

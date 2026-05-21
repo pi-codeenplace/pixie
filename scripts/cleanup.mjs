@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 const { EXE_DEV_TOKEN, EVENT_NAME, REPO, ISSUE_NUMBER, PR_NUMBER } = process.env
 
+const token = EXE_DEV_TOKEN.replace(/\s/g, '')
+
 const exe = async (cmd) => {
   const r = await fetch('https://exe.dev/exec', {
     method: 'POST',
-    headers: { Authorization: `Bearer ${EXE_DEV_TOKEN}` },
+    headers: { Authorization: `Bearer ${token}` },
     body: cmd,
   })
   return r.text()

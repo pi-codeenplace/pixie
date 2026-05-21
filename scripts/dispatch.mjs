@@ -61,7 +61,7 @@ if (existing) {
   vm = existing
 } else {
   console.log(`Creating VM: ${vmName} (forking pixie-base)`)
-  const result = await exe(`cp pixie-base ${vmName} --json`)
+  const result = await exe(`cp pixie-base ${vmName} --copy-tags=false --json`)
   vm = JSON.parse(result)
 
   // wait for running

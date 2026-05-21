@@ -16,5 +16,6 @@ jobs:
       # llm_model: kimi-k2.6       # default
     secrets:
       EXE_DEV_TOKEN: ${{ secrets.EXE_DEV_TOKEN }}
+      EXE_SSH_KEY: ${{ secrets.EXE_SSH_KEY }}
       GH_TOKEN: ${{ secrets.GH_TOKEN }}
       MOONSHOT_API_KEY: ${{ secrets.MOONSHOT_API_KEY }}

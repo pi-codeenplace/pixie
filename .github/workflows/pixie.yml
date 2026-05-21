@@ -22,6 +22,8 @@ on:
     secrets:
       EXE_DEV_TOKEN:
         required: true
+      EXE_SSH_KEY:
+        required: true
       GH_TOKEN:
         required: true
       MOONSHOT_API_KEY:
@@ -41,9 +43,16 @@ jobs:
         with:
           node-version: '22'
 
+      - name: setup ssh key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EXE_SSH_KEY }}" > ~/.ssh/pixie_gha
+          chmod 600 ~/.ssh/pixie_gha
+
       - name: dispatch
         env:
           EXE_DEV_TOKEN: ${{ secrets.EXE_DEV_TOKEN }}
+          EXE_SSH_KEY_PATH: ~/.ssh/pixie_gha
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
           MOONSHOT_API_KEY: ${{ secrets.MOONSHOT_API_KEY }}
           LLM_PROVIDER: ${{ inputs.llm_provider }}

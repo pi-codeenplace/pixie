@@ -2,7 +2,7 @@
 import { execSync } from 'child_process'
 
 const {
-  EXE_DEV_TOKEN, GH_TOKEN, MOONSHOT_API_KEY,
+  EXE_DEV_TOKEN, EXE_SSH_KEY_PATH, GH_TOKEN, MOONSHOT_API_KEY,
   LLM_PROVIDER, LLM_MODEL, BASE_BRANCH,
   EVENT_NAME, EVENT_ACTION, REPO,
   ISSUE_NUMBER, PR_NUMBER, LABEL_NAME,
@@ -108,9 +108,10 @@ const agentScript = [
   'disown',
 ].join('\n')
 
+const sshKey = EXE_SSH_KEY_PATH ? `-i ${EXE_SSH_KEY_PATH} ` : ''
 console.log(`Kicking agent on ${vm.ssh_dest}`)
 execSync(
-  `ssh -o StrictHostKeyChecking=no -o BatchMode=yes ${vm.ssh_dest} 'bash -s'`,
+  `ssh ${sshKey}-o StrictHostKeyChecking=no -o BatchMode=yes ${vm.ssh_dest} 'bash -s'`,
   { input: agentScript, stdio: ['pipe', 'inherit', 'inherit'] }
 )
 console.log('Agent kicked — exiting')

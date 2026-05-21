@@ -104,7 +104,7 @@ const agentScript = [
   envExports,
   'source ~/.nvm/nvm.sh',
   `PROMPT="$(cat /opt/pixie/prompts/${role}.md)"`,
-  `nohup pi --provider "$PIXIE_LLM_PROVIDER" --model "$PIXIE_LLM_MODEL" --no-session --prompt "$PROMPT" </dev/null >>/var/log/pixie-agent.log 2>&1 &`,
+  `nohup pi --provider "$PIXIE_LLM_PROVIDER" --model "$PIXIE_LLM_MODEL" --no-session --prompt "$PROMPT" </dev/null >>~/pixie-agent.log 2>&1 &`,
   'disown',
 ].join('\n')
 

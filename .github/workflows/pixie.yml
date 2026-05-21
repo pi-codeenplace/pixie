@@ -1,0 +1,86 @@
+name: pixie
+
+on:
+  workflow_call:
+    inputs:
+      bot_login:
+        description: GitHub login of the bot user (events from this actor are ignored)
+        type: string
+        required: true
+      base_branch:
+        description: Base branch for PRs
+        type: string
+        default: main
+      llm_provider:
+        description: pi LLM provider
+        type: string
+        default: moonshotai
+      llm_model:
+        description: pi LLM model
+        type: string
+        default: kimi-k2.6
+    secrets:
+      EXE_DEV_TOKEN:
+        required: true
+      GH_TOKEN:
+        required: true
+      MOONSHOT_API_KEY:
+        required: true
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    if: github.actor != inputs.bot_login
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: pi-codeenplace/pixie
+          path: _pixie
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: dispatch
+        env:
+          EXE_DEV_TOKEN: ${{ secrets.EXE_DEV_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          MOONSHOT_API_KEY: ${{ secrets.MOONSHOT_API_KEY }}
+          LLM_PROVIDER: ${{ inputs.llm_provider }}
+          LLM_MODEL: ${{ inputs.llm_model }}
+          BASE_BRANCH: ${{ inputs.base_branch }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_ACTION: ${{ github.event.action }}
+          REPO: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          ISSUE_LABELS: ${{ toJson(github.event.issue.labels) }}
+          LABEL_NAME: ${{ github.event.label.name }}
+        run: node _pixie/scripts/dispatch.mjs
+
+  cleanup:
+    runs-on: ubuntu-latest
+    if: |
+      github.actor != inputs.bot_login &&
+      (
+        (github.event_name == 'issues' && github.event.action == 'closed') ||
+        (github.event_name == 'pull_request' && github.event.action == 'closed')
+      )
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: pi-codeenplace/pixie
+          path: _pixie
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: cleanup
+        env:
+          EXE_DEV_TOKEN: ${{ secrets.EXE_DEV_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          REPO: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: node _pixie/scripts/cleanup.mjs

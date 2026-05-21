@@ -1,0 +1,20 @@
+name: pixie
+
+on:
+  issues:
+    types: [opened, edited, labeled, reopened, closed]
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+jobs:
+  pixie:
+    uses: pi-codeenplace/pixie/.github/workflows/pixie.yml@main
+    with:
+      bot_login: pi-codeenplace
+      base_branch: main
+      # llm_provider: moonshotai   # default
+      # llm_model: kimi-k2.6       # default
+    secrets:
+      EXE_DEV_TOKEN: ${{ secrets.EXE_DEV_TOKEN }}
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}
+      MOONSHOT_API_KEY: ${{ secrets.MOONSHOT_API_KEY }}

@@ -19,6 +19,7 @@ const exeJson = async (cmd) => JSON.parse(await exe(cmd))
 
 const repoSlug = REPO.replace(/\//g, '-').replace(/[^a-z0-9-]/gi, '-').toLowerCase()
 const num = ISSUE_NUMBER || PR_NUMBER
+const kind = EVENT_NAME === 'pull_request' ? 'pr' : 'issue'
 
 const role = (() => {
   if (EVENT_NAME === 'issues') {
@@ -38,9 +39,7 @@ if (!role) {
   process.exit(0)
 }
 
-const vmName = `pixie-${repoSlug}-${EVENT_NAME === 'pull_request' ? 'pr' : 'issue'}-${num}-${role}`
-  .slice(0, 63)
-
+const vmName = `pixie-${repoSlug}-${kind}-${num}-${role}`.slice(0, 63)
 console.log(`Role: ${role}, VM: ${vmName}`)
 
 const { vms } = await exeJson('ls --json')
@@ -51,24 +50,11 @@ if (existing) {
   console.log(`Found existing VM: ${vmName} (${existing.status})`)
   vm = existing
 } else {
-  console.log(`Creating VM: ${vmName}`)
-  const tags = ['pixie', repoSlug, `${EVENT_NAME === 'pull_request' ? 'pr' : 'issue'}-${num}`, `role-${role}`].join(',')
-  const envFlags = [
-    `--env GH_TOKEN=${GH_TOKEN}`,
-    `--env MOONSHOT_API_KEY=${MOONSHOT_API_KEY}`,
-    `--env PIXIE_REPO=${REPO}`,
-    `--env PIXIE_ISSUE_NUMBER=${ISSUE_NUMBER || ''}`,
-    `--env PIXIE_PR_NUMBER=${PR_NUMBER || ''}`,
-    `--env PIXIE_ROLE=${role}`,
-    `--env PIXIE_BASE_BRANCH=${BASE_BRANCH}`,
-    `--env PIXIE_LLM_PROVIDER=${LLM_PROVIDER}`,
-    `--env PIXIE_LLM_MODEL=${LLM_MODEL}`,
-  ].join(' ')
-
-  const result = await exe(`cp pixie-base --name=${vmName} --tag=${tags} ${envFlags} --no-email --json`)
+  console.log(`Creating VM: ${vmName} (forking pixie-base)`)
+  const result = await exe(`cp pixie-base ${vmName} --json`)
   vm = JSON.parse(result)
-  console.log(`Created VM: ${JSON.stringify(vm)}`)
 
+  // wait for running
   let attempts = 0
   while (attempts < 30) {
     await new Promise(r => setTimeout(r, 5000))
@@ -78,17 +64,43 @@ if (existing) {
     attempts++
   }
   if (vm.status !== 'running') throw new Error(`VM ${vmName} did not start in time`)
+
+  // apply tags
+  const tags = ['pixie', repoSlug, `${kind}-${num}`, `role-${role}`].join(' ')
+  await exe(`tag ${vmName} ${tags}`)
+  console.log(`Tagged: ${tags}`)
 }
 
-// kick agent — source nvm then run pi backgrounded, fully detached
-const promptFile = `/opt/pixie/prompts/${role}.md`
-const agentCmd = [
+// env vars to inject on the VM (written to a file, not baked into image)
+const envVars = {
+  GH_TOKEN,
+  MOONSHOT_API_KEY,
+  PIXIE_REPO: REPO,
+  PIXIE_ISSUE_NUMBER: ISSUE_NUMBER || '',
+  PIXIE_PR_NUMBER: PR_NUMBER || '',
+  PIXIE_ROLE: role,
+  PIXIE_BASE_BRANCH: BASE_BRANCH,
+  PIXIE_LLM_PROVIDER: LLM_PROVIDER,
+  PIXIE_LLM_MODEL: LLM_MODEL,
+}
+
+const envExports = Object.entries(envVars)
+  .map(([k, v]) => `export ${k}=${JSON.stringify(v)}`)
+  .join('\n')
+
+// kick agent: write env, then run pi backgrounded + detached
+const agentScript = [
+  'set -e',
+  envExports,
   'source ~/.nvm/nvm.sh',
-  `nohup pi --provider $PIXIE_LLM_PROVIDER --model $PIXIE_LLM_MODEL --no-session --prompt "$(cat ${promptFile})"`,
-  '</dev/null >>/var/log/pixie-agent.log 2>&1 &',
+  `PROMPT="$(cat /opt/pixie/prompts/${role}.md)"`,
+  `nohup pi --provider "$PIXIE_LLM_PROVIDER" --model "$PIXIE_LLM_MODEL" --no-session --prompt "$PROMPT" </dev/null >>/var/log/pixie-agent.log 2>&1 &`,
   'disown',
-].join(' && ')
+].join('\n')
 
 console.log(`Kicking agent on ${vm.ssh_dest}`)
-execSync(`ssh -o StrictHostKeyChecking=no -o BatchMode=yes ${vm.ssh_dest} 'bash -c ${JSON.stringify(agentCmd)}'`, { stdio: 'inherit' })
+execSync(
+  `ssh -o StrictHostKeyChecking=no -o BatchMode=yes ${vm.ssh_dest} 'bash -s'`,
+  { input: agentScript, stdio: ['pipe', 'inherit', 'inherit'] }
+)
 console.log('Agent kicked — exiting')
